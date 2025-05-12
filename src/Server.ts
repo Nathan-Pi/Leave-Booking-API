@@ -9,7 +9,6 @@ import morgan, { StreamOptions } from "morgan";
 import { UserRouter } from "./routes/UserRouter";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
-// import { IAuthenticatedJWTRequest } from "./types/IAuthenticatedJWTRequest";
 
 export class Server {
   private readonly app: express.Application;
@@ -63,28 +62,7 @@ export class Server {
     this.app.use(express.json());
     this.app.use(morgan("combined", { stream: morganStream }));
   }
-  private jwtRateLimitMiddleware(route: string) {
-    return (
-      req: Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      const email = req.signedInUser?.email;
 
-      if (email) {
-        Logger.info(`${route} accessed by ${req.ip}`);
-        this.jwtRateLimiter(email)(req, res, next);
-      } else {
-        const ERROR_MESSAGE = "missing essential information in JWT";
-        Logger.error(ERROR_MESSAGE);
-        ResponseHandler.sendErrorResponse(
-          res,
-          StatusCodes.BAD_REQUEST,
-          ERROR_MESSAGE
-        );
-      }
-    };
-  }
   private initialiseRoutes() {
     this.app.use(
       "/api/login",
@@ -123,17 +101,6 @@ export class Server {
     });
   }
 
-  private logRouteAccess(route: string) {
-    return (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      Logger.info(`${route} accessed by ${req.ip}`);
-      next();
-    };
-  }
-
   public async start() {
     await this.initialiseDataSource();
     this.app.listen(this.port, () => {
@@ -150,7 +117,7 @@ export class Server {
       throw error;
     }
   }
-  private authenticateToken(
+   private authenticateToken(
     req: Request,
     res: Response,
     next: NextFunction
@@ -198,5 +165,33 @@ export class Server {
         Server.ERROR_TOKEN_NOT_FOUND
       );
     }
+  }
+  private logRouteAccess(route: string) {
+    return (req: Request, res: Response, next: NextFunction) => {
+      Logger.info(`${route} accessed by ${req.ip}`);
+      next();
+    };
+  }
+  private jwtRateLimitMiddleware(route: string) {
+    return (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ) => {
+      const email = req.signedInUser?.email;
+
+      if (email) {
+        Logger.info(`${route} accessed by ${req.ip}`);
+        this.jwtRateLimiter(email)(req, res, next);
+      } else {
+        const ERROR_MESSAGE = "Missing essential information in JWT";
+        Logger.error(ERROR_MESSAGE);
+        ResponseHandler.sendErrorResponse(
+          res,
+          StatusCodes.BAD_REQUEST,
+          ERROR_MESSAGE
+        );
+      }
+    };
   }
 }

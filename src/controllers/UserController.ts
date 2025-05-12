@@ -126,7 +126,8 @@ export class UserController {
   public create = async (req: Request, res: Response): Promise<void> => {
     try {
       let user = new User();
-
+      user.firstname = req.body.firstname
+      user.surname = req.body.surname
       //Will be salted and hashed in the entity
       user.password = req.body.password;
 
