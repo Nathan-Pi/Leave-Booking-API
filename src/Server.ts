@@ -9,6 +9,7 @@ import morgan, { StreamOptions } from "morgan";
 import { UserRouter } from "./routes/UserRouter";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
+import { LeaveRouter } from "./routes/LeaveRouter";
 
 export class Server {
   private readonly app: express.Application;
@@ -84,6 +85,12 @@ export class Server {
       this.jwtRateLimitMiddleware("users"),
       this.userRouter.getRouter()
     );
+    this.app.use(
+    "/api/leave",
+    this.authenticateToken, // Ensure only authenticated users can access
+    this.logRouteAccess("Leave route"),
+    new LeaveRouter().getRouter()
+  );
   }
 
   private initialiseErrorHandling() {

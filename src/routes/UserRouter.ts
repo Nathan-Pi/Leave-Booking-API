@@ -1,13 +1,17 @@
-import { Router } from "express"; // Correctly import Router
+import { Router } from "express";
 import { UserController } from "../controllers/UserController";
+import { validateUserCreation, validateUserUpdate } from "../middleware/ValidationMiddleware";
+import { authenticateUser } from "../middleware/AuthenticationMiddleware";
+import { authorizeRole } from "../middleware/AuthorizationMiddleware";
 
 export class UserRouter {
-  constructor(
-    private router: Router,
-    private userController: UserController
-  ) {
+  private router: Router;
+  private userController: UserController;
+
+  constructor(router: Router, userController: UserController) {
     this.router = router;
-    this.addRoutes();
+    this.userController = userController;
+    this.addRoutes(); // Initialize routes
   }
 
   public getRouter(): Router {
@@ -15,18 +19,25 @@ export class UserRouter {
   }
 
   private addRoutes() {
-    // Get
-    this.router.get("/", this.userController.getAll);
-    this.router.get("/email/:emailAddress", this.userController.getByEmail);
-    this.router.get("/:id", this.userController.getById);
+    // Apply authentication middleware to all routes
+    this.router.use(authenticateUser);
 
-    // Post
-    this.router.post("/", this.userController.create);
-    
-    // Delete
-    this.router.delete("/:id", this.userController.delete);
+    // GET all users (Admin or Manager only)
+    this.router.get("/", authorizeRole(["Admin", "Manager"]), this.userController.getAll);
 
-    // Patch
-    this.router.patch("/", this.userController.update);
+    // GET user by email (Admin or Manager only)
+    this.router.get("/email/:emailAddress", authorizeRole(["Admin", "Manager"]), this.userController.getByEmail);
+
+    // GET user by ID (Admin or Manager only)
+    this.router.get("/:id", authorizeRole(["Admin", "Manager"]), this.userController.getById);
+
+    // POST create a new user (Admin only)
+    this.router.post("/", authorizeRole(["Admin"]), validateUserCreation, this.userController.create);
+
+    // DELETE a user by ID (Admin only)
+    this.router.delete("/:id", authorizeRole(["Admin"]), this.userController.delete);
+
+    // PATCH update a user (Admin only)
+    this.router.patch("/:id", authorizeRole(["Admin"]), validateUserUpdate, this.userController.update);
   }
 }

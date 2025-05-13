@@ -7,6 +7,7 @@ import { UserRouter } from "./routes/UserRouter";
 import { UserController } from "./controllers/UserController";
 import { LoginRouter } from "./routes/LoginRouter";
 import { LoginController } from "./controllers/LoginController";
+import { errorHandler } from "./middleware/ErrorHandlerMiddleware";
 
 //Initialise the port
 const DEFAULT_PORT = 8900;
