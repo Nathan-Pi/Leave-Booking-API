@@ -17,8 +17,8 @@ export class LeaveController {
       const { startDate, endDate, reason } = req.body;
       const user = req.signedInUser; // Authentication middleware adds this
       const uid = req.signedInUser.role.id
-    // console.log("Signed-in user:", req.signedInUser);
-    // console.log("Signed-in user id:", uid);
+    console.log("Signed-in user:", req.signedInUser);
+    console.log("Signed-in user id:", uid);
 
       if (!startDate || !endDate) {
         throw new Error("Start date and end date are required.");

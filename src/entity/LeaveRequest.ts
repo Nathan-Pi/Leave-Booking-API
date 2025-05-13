@@ -15,7 +15,6 @@ export class LeaveRequest {
   id: number;
 
   @ManyToOne(() => User, { nullable: false })
-  @JoinColumn({ name: "userId" }) // Ensure the foreign key column is explicitly named
   user: User;
 
   @Column()

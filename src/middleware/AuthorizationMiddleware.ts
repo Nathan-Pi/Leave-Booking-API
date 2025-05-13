@@ -1,17 +1,14 @@
-import { Request, Response, NextFunction } from "express";
+// import { Request, Response, NextFunction } from "express";
 
-/**
- * Middleware to check if the user has the required role.
- * @param allowedRoles Roles allowed to access the route
- */
-export const authorizeRole = (allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const userRole = req.user?.role;
+// export const authorizeRole = (roles: string[]) => {
+//   return (req: Request, res: Response, next: NextFunction) => {
+//     console.log("Roles required:", roles); // Debugging
+//     console.log("User role:", req.user.role); // Debugging
 
-    if (!userRole || !allowedRoles.includes(userRole)) {
-      return res.status(403).json({ error: "Access denied: Insufficient permissions." });
-    }
+//     if (req.user && roles.includes(req.user.role)) {
+//       return next();
+//     }
 
-    next();
-  };
-};
+//     res.status(403).json({ error: "Access denied: Insufficient permissions." });
+//   };
+// };
