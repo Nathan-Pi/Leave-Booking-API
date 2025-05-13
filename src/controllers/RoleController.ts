@@ -1,107 +1,44 @@
 import { Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { User } from "../entity/User";
+import { Role } from "../entity/Role";
 import { Repository } from "typeorm";
 import { ResponseHandler } from "../helper/ResponseHandler";
 import { StatusCodes } from "http-status-codes";
 import { validate } from "class-validator";
 import { instanceToPlain } from "class-transformer";
-import { Role } from "../entity/Role";
-import { UserController } from "./UserController";
 
 export class RoleController {
-  public static readonly ERROR_NO_USER_ID_PROVIDED = "No ID provided";
-  public static readonly ERROR_INVALID_USER_ID_FORMAT = "Invalid ID format";
-  public static readonly ERROR_USER_NOT_FOUND = "User not found";
-  public static readonly ERROR_USER_NOT_FOUND_WITH_ID = (id: number) =>
-    `User not found with ID: ${id}`;
-  public static readonly ERROR_PASSWORD_IS_BLANK = "Password is blank";
-  public static readonly ERROR_FAILED_TO_RETRIEVE_USERS =
-    "Failed to retrieve users";
-  public static readonly ERROR_FAILED_TO_RETRIEVE_USER =
-    "Failed to retrieve user";
-  public static readonly ERROR_USER_NOT_FOUND_FOR_DELETION =
-    "User with the provided ID not found";
-  public static readonly ERROR_EMAIL_REQUIRED = "Email is required";
-  public static readonly ERROR_EMAIL_NOT_FOUND = (email: string) =>
-    `${email} not found`;
-  public static readonly ERROR_RETRIEVING_USER = (error: string) =>
-    `Error retrieving user: ${error}`;
-  public static readonly ERROR_UNABLE_TO_FIND_USER_EMAIL = (email: string) =>
-    `Unable to find user with the email: ${email}`;
+  public static readonly ERROR_NO_ROLE_ID_PROVIDED = "No ID provided";
+  public static readonly ERROR_INVALID_ROLE_ID_FORMAT = "Invalid ID format";
+  public static readonly ERROR_ROLE_NOT_FOUND = "Role not found";
+  public static readonly ERROR_ROLE_NOT_FOUND_WITH_ID = (id: number) =>
+    `Role not found with ID: ${id}`;
+  public static readonly ERROR_FAILED_TO_RETRIEVE_ROLES =
+    "Failed to retrieve roles";
+  public static readonly ERROR_FAILED_TO_RETRIEVE_ROLE =
+    "Failed to retrieve role";
+  public static readonly ERROR_ROLE_NOT_FOUND_FOR_DELETION =
+    "Role with the provided ID not found";
   public static readonly ERROR_VALIDATION_FAILED = "Validation failed";
 
-  private userRepository: Repository<User>;
   private roleRepository: Repository<Role>;
-
   constructor() {
-    this.userRepository = AppDataSource.getRepository(User);
     this.roleRepository = AppDataSource.getRepository(Role);
   }
 
-  // Allow reset of AL
-  async resetAnnualLeave(uid: number): Promise<void> {
-    const user = await this.userRepository.findOneBy({ id: uid });
-    if (!user) throw new Error("User not found");
-
-    user.remainingAl = user.initialAlTotal;
-    await this.userRepository.save(user);
-  }
-
-  // Get all users
   public getAll = async (req: Request, res: Response): Promise<void> => {
     try {
-      const users = await this.userRepository.find({
-        relations: ["manager", "role"], // Include all  role fields in response
-      });
-
-      if (users.length === 0) {
+      const roles = await this.roleRepository.find();
+      if (roles.length === 0) {
         ResponseHandler.sendErrorResponse(res, StatusCodes.NO_CONTENT);
         return;
       }
-
-      ResponseHandler.sendSuccessResponse(res, users);
+      ResponseHandler.sendSuccessResponse(res, roles);
     } catch (error) {
       ResponseHandler.sendErrorResponse(
         res,
         StatusCodes.INTERNAL_SERVER_ERROR,
-        `${UserController.ERROR_FAILED_TO_RETRIEVE_USERS}: ${error.message}`
-      );
-    }
-  };
-
-  public getByEmail = async (req: Request, res: Response): Promise<void> => {
-    const email = req.params.emailAddress;
-
-    if (!email || email.trim().length === 0) {
-      ResponseHandler.sendErrorResponse(
-        res,
-        StatusCodes.BAD_REQUEST,
-        UserController.ERROR_EMAIL_REQUIRED
-      );
-      return;
-    }
-
-    try {
-      const user = await this.userRepository.findOne({
-        where: { email: email },
-        relations: ["role"],
-      });
-      if (!user) {
-        ResponseHandler.sendErrorResponse(
-          res,
-          StatusCodes.BAD_REQUEST,
-          `${email} not found`
-        );
-        return;
-      }
-
-      ResponseHandler.sendSuccessResponse(res, user);
-    } catch (error) {
-      ResponseHandler.sendErrorResponse(
-        res,
-        StatusCodes.BAD_REQUEST,
-        UserController.ERROR_UNABLE_TO_FIND_USER_EMAIL(email)
+        `${RoleController.ERROR_FAILED_TO_RETRIEVE_ROLES}: ${error.message}`
       );
     }
   };
@@ -112,72 +49,48 @@ export class RoleController {
       ResponseHandler.sendErrorResponse(
         res,
         StatusCodes.BAD_REQUEST,
-        UserController.ERROR_INVALID_USER_ID_FORMAT
+        RoleController.ERROR_INVALID_ROLE_ID_FORMAT
       );
       return;
     }
 
     try {
-      const user = await this.userRepository.findOne({
-        where: { id: id },
-        relations: ["role"],
-      });
-      if (!user) {
+      const role = await this.roleRepository.findOneBy({ id });
+      if (!role) {
         ResponseHandler.sendErrorResponse(
           res,
           StatusCodes.NO_CONTENT,
-          UserController.ERROR_USER_NOT_FOUND_WITH_ID(id)
+          RoleController.ERROR_ROLE_NOT_FOUND_WITH_ID(id)
         );
         return;
       }
-
-      ResponseHandler.sendSuccessResponse(res, user);
+      ResponseHandler.sendSuccessResponse(res, role);
     } catch (error) {
       ResponseHandler.sendErrorResponse(
         res,
         StatusCodes.BAD_REQUEST,
-        UserController.ERROR_RETRIEVING_USER(error.message)
+        RoleController.ERROR_FAILED_TO_RETRIEVE_ROLE
       );
     }
   };
 
   public create = async (req: Request, res: Response): Promise<void> => {
     try {
-      let user = new User();
+      let role = new Role();
+      role.name = req.body.name;
 
-      //Will be salted and hashed in the entity
-      user.password = req.body.password;
-
-      user.email = req.body.email;
-      user.role = req.body.roleId;
-      user.firstname = req.body.firstname;
-      user.surname = req.body.surname;
-
-      if (req.body.manager !== undefined) {
-        user.manager = req.body.manager;
-      }
-
-      if (req.body.initialAlTotal !== undefined) {
-        user.initialAlTotal = req.body.initialAlTotal;
-      }
-
-      if (req.body.remainingAl !== undefined) {
-        user.remainingAl = req.body.remainingAl;
-      }
-
-      const errors = await validate(user);
+      const errors = await validate(role);
       if (errors.length > 0) {
-        //Collate a string of all decorator error messages
         throw new Error(
           errors.map((err) => Object.values(err.constraints || {})).join(", ")
         );
       }
 
-      user = await this.userRepository.save(user);
+      role = await this.roleRepository.save(role);
 
       ResponseHandler.sendSuccessResponse(
         res,
-        instanceToPlain(user),
+        instanceToPlain(role),
         StatusCodes.CREATED
       );
     } catch (error: any) {
@@ -193,13 +106,13 @@ export class RoleController {
     const id = req.params.id;
     try {
       if (!id) {
-        throw new Error("No ID provided");
+        throw new Error(RoleController.ERROR_NO_ROLE_ID_PROVIDED);
       }
-      const result = await this.userRepository.delete(id);
+      const result = await this.roleRepository.delete(id);
       if (result.affected === 0) {
-        throw new Error("User with the provided ID not found");
+        throw new Error(RoleController.ERROR_ROLE_NOT_FOUND_FOR_DELETION);
       }
-      ResponseHandler.sendSuccessResponse(res, "User deleted", StatusCodes.OK);
+      ResponseHandler.sendSuccessResponse(res, "Role deleted", StatusCodes.OK);
     } catch (error: any) {
       ResponseHandler.sendErrorResponse(
         res,
@@ -210,72 +123,40 @@ export class RoleController {
   };
 
   public update = async (req: Request, res: Response): Promise<void> => {
-    console.log("req.body:", req.body);
     const id = req.body.id;
 
     try {
-      if (!id) {
-        throw new Error(UserController.ERROR_NO_USER_ID_PROVIDED);
-      }
+        if (id === undefined || id === null) {
+            throw new Error(RoleController.ERROR_NO_ROLE_ID_PROVIDED);
+        }
 
-      let user = await this.userRepository.findOne({
-        where: { id },
-        relations: ["manager", "role"],
-      });
+        let role = await this.roleRepository.findOneBy({ id });
 
-      if (!user) {
-        throw new Error(UserController.ERROR_USER_NOT_FOUND);
-      }
+        if (!role) {
+            throw new Error(RoleController.ERROR_ROLE_NOT_FOUND);
+        }
 
-      // Update specific fields
-      if (req.body.email !== undefined) {
-        user.email = req.body.email;
-      }
+        // Update specific fields
+        if (req.body.name !== undefined) {
+            role.name = req.body.name;
+        }
 
-      if (req.body.roleId !== undefined) {
-        const role = await this.roleRepository.findOneBy({
-          id: req.body.roleId,
-        });
-        if (!role) throw new Error("Invalid role ID.");
-        user.role = role;
-      }
+        const errors = await validate(role, { skipMissingProperties: true });
+        if (errors.length > 0) {
+            throw new Error(
+                errors.map((e) => Object.values(e.constraints || {})).flat().join(", ")
+            );
+        }
 
-      if (req.body.managerId !== undefined) {
-        const manager = await this.userRepository.findOneBy({
-          id: req.body.managerId,
-        });
-        if (!manager) throw new Error("Invalid manager ID.");
-        user.manager = manager;
-      }
+        role = await this.roleRepository.save(role);
 
-      if (req.body.firstname !== undefined) {
-        user.firstname = req.body.firstname;
-      }
-
-      if (req.body.surname !== undefined) {
-        user.surname = req.body.surname;
-      }
-
-      const errors = await validate(user);
-      if (errors.length > 0) {
-        //Collate a string of all decorator error messages
-        throw new Error(
-          errors
-            .map((e) => Object.values(e.constraints || {}))
-            .flat()
-            .join(", ")
-        );
-      }
-
-      user = await this.userRepository.save(user);
-
-      ResponseHandler.sendSuccessResponse(res, user, StatusCodes.OK);
+        ResponseHandler.sendSuccessResponse(res, role, StatusCodes.OK);
     } catch (error: any) {
-      ResponseHandler.sendErrorResponse(
-        res,
-        StatusCodes.BAD_REQUEST,
-        error.message
-      );
+        ResponseHandler.sendErrorResponse(
+            res,
+            StatusCodes.BAD_REQUEST,
+            error.message
+        );
     }
-  };
+};
 }

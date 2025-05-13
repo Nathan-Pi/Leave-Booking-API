@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   BeforeInsert,
 } from "typeorm";
 import {
@@ -15,6 +16,7 @@ import {
   MinLength,
 } from "class-validator";
 import { Role } from "./Role";
+import { LeaveRequest } from "./LeaveRequest";
 import { Exclude } from "class-transformer";
 import { PasswordHandler } from "../helper/PasswordHandler";
 
@@ -31,7 +33,7 @@ export class User {
   @IsString()
   surname: string;
 
-  @Column({ select: false }) //obscure from get queries
+  @Column({ select: false }) // obscure from get queries
   @Exclude()
   @IsString()
   @MinLength(10, { message: "Password must be at least 10 characters long" })
@@ -49,8 +51,17 @@ export class User {
   @IsNotEmpty({ message: "Role is required" })
   role: Role;
 
-  @ManyToOne(() => User, { nullable: true })
+  // Relationship with LeaveRequest
+  @OneToMany(() => LeaveRequest, (leave) => leave.user)
+  leaveRequests: LeaveRequest[];
+
+  // Relationship with Manager
+  @ManyToOne(() => User, (user) => user.staff, { nullable: true })
   manager: User;
+
+  // Relationship with Staff (managing users)
+  @OneToMany(() => User, (user) => user.manager)
+  staff: User[];
 
   @Column({ default: 25 })
   @IsOptional()

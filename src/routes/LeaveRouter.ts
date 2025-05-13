@@ -12,9 +12,19 @@ export class LeaveRouter {
   }
 
   private addRoutes() {
-    this.router.post("/", this.leaveController.requestLeave);
-  }
+    
+  // Existing route for requesting leave
+  this.router.post("/", this.leaveController.requestLeave);
 
+  // Route for approving or rejecting leave requests
+  this.router.patch("/status", this.leaveController.updateLeaveRequestStatus);
+
+  // Route for viewing outstanding leave requests
+  this.router.get("/outstanding", this.leaveController.getOutstandingRequests);
+
+  // Route for viewing remaining leave for a staff member
+  this.router.get("/remaining/:staffId", this.leaveController.getRemainingLeave);
+}
   public getRouter(): Router {
     return this.router;
   }

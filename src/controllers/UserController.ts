@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { User } from "../entity/User";
+import { Role } from "../entity/Role";
 import { Repository } from "typeorm";
 import { ResponseHandler } from "../helper/ResponseHandler";
 import { StatusCodes } from "http-status-codes";
@@ -28,15 +29,19 @@ export class UserController {
   public static readonly ERROR_UNABLE_TO_FIND_USER_EMAIL = (email: string) =>
     `Unable to find user with the email: ${email}`;
   public static readonly ERROR_VALIDATION_FAILED = "Validation failed";
+
   private userRepository: Repository<User>;
+  private roleRepository: Repository<Role>; // Added roleRepository
+
   constructor() {
     this.userRepository = AppDataSource.getRepository(User);
+    this.roleRepository = AppDataSource.getRepository(Role); // Initialize roleRepository
   }
 
   public getAll = async (req: Request, res: Response): Promise<void> => {
     try {
       const users = await this.userRepository.find({
-        relations: ["role"], // Include all  role fields in response
+        relations: ["role", "manager"], // Include role and manager in response
       });
 
       if (users.length === 0) {
@@ -69,7 +74,7 @@ export class UserController {
     try {
       const user = await this.userRepository.findOne({
         where: { email: email },
-        relations: ["role"],
+        relations: ["role", "manager"], // Include manager in response
       });
       if (!user) {
         ResponseHandler.sendErrorResponse(
@@ -89,6 +94,7 @@ export class UserController {
       );
     }
   };
+
   public getById = async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -103,7 +109,7 @@ export class UserController {
     try {
       const user = await this.userRepository.findOne({
         where: { id: id },
-        relations: ["role"],
+        relations: ["role", "manager"], // Include manager in response
       });
       if (!user) {
         ResponseHandler.sendErrorResponse(
@@ -123,20 +129,31 @@ export class UserController {
       );
     }
   };
+
   public create = async (req: Request, res: Response): Promise<void> => {
     try {
       let user = new User();
-      user.firstname = req.body.firstname
-      user.surname = req.body.surname
-      //Will be salted and hashed in the entity
-      user.password = req.body.password;
+      user.firstname = req.body.firstname;
+      user.surname = req.body.surname;
 
+      // Will be salted and hashed in the entity
+      user.password = req.body.password;
       user.email = req.body.email;
-      user.role = req.body.roleId;
+
+      // Fetch and assign the role
+      const role = await this.roleRepository.findOneBy({ id: req.body.roleId });
+      if (!role) throw new Error("Invalid role ID.");
+      user.role = role;
+
+      // Fetch and assign the manager if provided
+      if (req.body.managerId !== undefined) {
+        const manager = await this.userRepository.findOneBy({ id: req.body.managerId });
+        if (!manager) throw new Error("Invalid manager ID.");
+        user.manager = manager; // Assign the manager User object
+      }
 
       const errors = await validate(user);
       if (errors.length > 0) {
-        //Collate a string of all decorator error messages
         throw new Error(
           errors.map((err) => Object.values(err.constraints || {})).join(", ")
         );
@@ -157,25 +174,6 @@ export class UserController {
       );
     }
   };
-  public delete = async (req: Request, res: Response): Promise<void> => {
-    const id = req.params.id;
-    try {
-      if (!id) {
-        throw new Error("No ID provided");
-      }
-      const result = await this.userRepository.delete(id);
-      if (result.affected === 0) {
-        throw new Error("User with the provided ID not found");
-      }
-      ResponseHandler.sendSuccessResponse(res, "User deleted", StatusCodes.OK);
-    } catch (error: any) {
-      ResponseHandler.sendErrorResponse(
-        res,
-        StatusCodes.NOT_FOUND,
-        error.message
-      );
-    }
-  };
 
   public update = async (req: Request, res: Response): Promise<void> => {
     const id = req.body.id;
@@ -185,24 +183,44 @@ export class UserController {
         throw new Error(UserController.ERROR_NO_USER_ID_PROVIDED);
       }
 
-      let user = await this.userRepository.findOneBy({ id });
+      let user = await this.userRepository.findOne({
+        where: { id },
+        relations: ["role", "manager"], // Include manager in response
+      });
 
       if (!user) {
         throw new Error(UserController.ERROR_USER_NOT_FOUND);
       }
 
       // Update specific fields
-      user.email = req.body.email;
-      user.role = req.body.roleId;
+      if (req.body.email !== undefined) {
+        user.email = req.body.email;
+      }
 
-      const errors = await validate(user);
+      if (req.body.roleId !== undefined) {
+        const role = await this.roleRepository.findOneBy({ id: req.body.roleId });
+        if (!role) throw new Error("Invalid role ID.");
+        user.role = role;
+      }
+
+      if (req.body.managerId !== undefined) {
+        const manager = await this.userRepository.findOneBy({ id: req.body.managerId });
+        if (!manager) throw new Error("Invalid manager ID.");
+        user.manager = manager;
+      }
+
+      if (req.body.firstname !== undefined) {
+        user.firstname = req.body.firstname;
+      }
+
+      if (req.body.surname !== undefined) {
+        user.surname = req.body.surname;
+      }
+
+      const errors = await validate(user, { skipMissingProperties: true });
       if (errors.length > 0) {
-        //Collate a string of all decorator error messages
         throw new Error(
-          errors
-            .map((e) => Object.values(e.constraints || {}))
-            .flat()
-            .join(", ")
+          errors.map((e) => Object.values(e.constraints || {})).flat().join(", ")
         );
       }
 
@@ -213,6 +231,30 @@ export class UserController {
       ResponseHandler.sendErrorResponse(
         res,
         StatusCodes.BAD_REQUEST,
+        error.message
+      );
+    }
+  };
+
+  public delete = async (req: Request, res: Response): Promise<void> => {
+    const id = req.params.id;
+
+    try {
+      if (!id) {
+        throw new Error("No ID provided");
+      }
+
+      const result = await this.userRepository.delete(id);
+
+      if (result.affected === 0) {
+        throw new Error("User with the provided ID not found");
+      }
+
+      ResponseHandler.sendSuccessResponse(res, "User deleted", StatusCodes.OK);
+    } catch (error: any) {
+      ResponseHandler.sendErrorResponse(
+        res,
+        StatusCodes.NOT_FOUND,
         error.message
       );
     }
