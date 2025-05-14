@@ -5,8 +5,12 @@ import { RoleRouter } from "./routes/RoleRouter";
 import { RoleController } from "./controllers/RoleController";
 import { UserRouter } from "./routes/UserRouter";
 import { UserController } from "./controllers/UserController";
+// import { ExampleRouter } from "./routes/ExampleRouter";
+// import { ExampleController } from "./controllers/ExampleController";
 import { LoginRouter } from "./routes/LoginRouter";
 import { LoginController } from "./controllers/LoginController";
+import { LeaveRouter } from "./routes/LeaveRouter";
+import { LeaveController } from "./controllers/LeaveController";
 // import { errorHandler } from "./middleware/ErrorHandlerMiddleware";
 
 //Initialise the port
@@ -24,13 +28,16 @@ const appDataSource = AppDataSource;
 const loginRouter = new LoginRouter(Router(), new LoginController());
 const roleRouter = new RoleRouter(Router(), new RoleController());
 const userRouter = new UserRouter(Router(), new UserController());
-
+// const exampleRouter = new ExampleRouter(Router(), new ExampleController());
+const leaveRouter = new LeaveRouter(Router(), new LeaveController());
 // Instantiate/start the server
 const server = new Server(
   port,
   loginRouter,
   roleRouter,
   userRouter,
-  appDataSource
+  // exampleRouter,
+  leaveRouter,
+  appDataSource,
 );
 server.start();

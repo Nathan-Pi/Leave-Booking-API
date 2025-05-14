@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   BeforeInsert,
 } from "typeorm";
 import {
@@ -17,6 +18,7 @@ import {
 import { Role } from "./Role";
 import { Exclude } from "class-transformer";
 import { PasswordHandler } from "../helper/PasswordHandler";
+import { LeaveRequest } from "./LeaveRequest";
 
 @Entity({ name: "user" })
 export class User {
@@ -51,6 +53,9 @@ export class User {
 
   @ManyToOne(() => User, { nullable: true })
   manager: User;
+
+  // @OneToMany(() => LeaveRequest, leave => leave.user)
+  // leaveRequests: LeaveRequest[];
 
   @Column({ default: 25 })
   @IsOptional()

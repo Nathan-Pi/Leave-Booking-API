@@ -44,7 +44,8 @@ export class Server {
     private readonly loginRouter: LoginRouter,
     private readonly roleRouter: RoleRouter,
     private readonly userRouter: UserRouter,
-    private readonly appDataSource: DataSource
+    private readonly leaveRouter: LeaveRouter,
+    private readonly appDataSource: DataSource,
   ) {
     this.app = express();
 
@@ -89,7 +90,7 @@ export class Server {
     "/api/leave",
     this.authenticateToken, // Ensure only authenticated users can access
     this.logRouteAccess("Leave route"),
-    new LeaveRouter().getRouter()
+    this.leaveRouter.getRouter()
   );
   }
 
