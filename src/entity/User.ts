@@ -33,6 +33,9 @@ export class User {
   @IsString()
   surname: string;
 
+  @Column({ nullable: true })
+  managerId: number;
+
   @Column({ select: false }) //obscure from get queries
   @Exclude()
   @IsString()

@@ -12,9 +12,10 @@ import { User } from "./User";
 @Entity({ name: "leave_requests" })
 export class LeaveRequest {
   @PrimaryGeneratedColumn()
-  id: number;
+  Id: number;
 
   @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Column()
@@ -34,4 +35,8 @@ export class LeaveRequest {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  get userId(): number | undefined {
+    return this.user?.id;
+  }
 }
