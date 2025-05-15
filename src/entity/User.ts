@@ -49,7 +49,7 @@ export class User {
   @IsNotEmpty({ message: "Role is required" })
   role: Role;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true})
   manager: User;
 
   @Column({ default: 25 })
@@ -63,6 +63,7 @@ export class User {
   @IsInt({ message: "remainingAl must be an integer number" })
   @Min(0, { message: "remainingAl must not be less than 0" })
   remainingAl: number;
+  user: any;
 
   @BeforeInsert()
   hashPassword() {

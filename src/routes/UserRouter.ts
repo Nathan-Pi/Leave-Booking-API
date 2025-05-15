@@ -27,6 +27,6 @@ export class UserRouter {
     this.router.delete("/:id", this.userController.delete);
 
     // Patch
-    this.router.patch("/", this.userController.update);
+    this.router.patch("/:id", this.userController.updateRole);
   }
 }

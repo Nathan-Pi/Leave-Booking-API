@@ -12,7 +12,7 @@ import { User } from "./User";
 @Entity({ name: "leave_requests" })
 export class LeaveRequest {
   @PrimaryGeneratedColumn()
-  id: number;
+  leaveId: number;
 
   @ManyToOne(() => User, { nullable: false })
   user: User;

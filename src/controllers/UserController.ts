@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { User } from "../entity/User";
-import { Repository } from "typeorm";
+import { Admin, Repository } from "typeorm";
 import { ResponseHandler } from "../helper/ResponseHandler";
 import { StatusCodes } from "http-status-codes";
 import { validate } from "class-validator";
 import { instanceToPlain } from "class-transformer";
+import { Role } from "../entity/Role";
 
 export class UserController {
   public static readonly ERROR_NO_USER_ID_PROVIDED = "No ID provided";
@@ -133,6 +134,7 @@ export class UserController {
 
       user.email = req.body.email;
       user.role = req.body.roleId;
+      user.manager = req.body.managerId;
 
       const errors = await validate(user);
       if (errors.length > 0) {
@@ -177,39 +179,81 @@ export class UserController {
     }
   };
 
-  public update = async (req: Request, res: Response): Promise<void> => {
-    const id = req.body.id;
+  // public update = async (req: Request, res: Response): Promise<void> => {
+  //       const { id } = req.params;
 
+  //   try {
+  //     if (!id) {
+  //       throw new Error(UserController.ERROR_NO_USER_ID_PROVIDED);
+  //     }
+
+  //     let user = await this.userRepository.findOneBy({ id });
+
+  //     if (!user) {
+  //       throw new Error(UserController.ERROR_USER_NOT_FOUND);
+  //     }
+
+  //     // Update specific fields
+  //     user.email = req.body.email;
+  //     user.role = req.body.roleId;
+
+  //     const errors = await validate(user);
+  //     if (errors.length > 0) {
+  //       //Collate a string of all decorator error messages
+  //       throw new Error(
+  //         errors
+  //           .map((e) => Object.values(e.constraints || {}))
+  //           .flat()
+  //           .join(", ")
+  //       );
+  //     }
+
+  //     user = await this.userRepository.save(user);
+
+  //     ResponseHandler.sendSuccessResponse(res, user, StatusCodes.OK);
+  //   } catch (error: any) {
+  //     ResponseHandler.sendErrorResponse(
+  //       res,
+  //       StatusCodes.BAD_REQUEST,
+  //       error.message
+  //     );
+  //   }
+  // };
+
+  public updateRole = async (req: Request, res: Response): Promise<void> => {
     try {
-      if (!id) {
-        throw new Error(UserController.ERROR_NO_USER_ID_PROVIDED);
-      }
+   //is admin?
 
-      let user = await this.userRepository.findOneBy({ id });
+ //check if admin
+        if (req.signedInUser.role.id !== 1) {
+            return res.status(403).json({ error: "You are not authorized to amend user role." });
+        }
 
-      if (!user) {
-        throw new Error(UserController.ERROR_USER_NOT_FOUND);
-      }
+        //get user by id from params
+        const userId = req.params.id;
+        const user = await this.userRepository.findOneBy({ id: userId });
+        console.log(user)
+        console.log(userId)
 
-      // Update specific fields
-      user.email = req.body.email;
-      user.role = req.body.roleId;
+        if (!user) {
+            return res.status(404).json({ error: "User not found." });
+        }
 
-      const errors = await validate(user);
-      if (errors.length > 0) {
-        //Collate a string of all decorator error messages
-        throw new Error(
-          errors
-            .map((e) => Object.values(e.constraints || {}))
-            .flat()
-            .join(", ")
-        );
-      }
+        //get role from body
+        const roleId = req.body.roleId;
+        const role = await AppDataSource.getRepository(Role).findOneBy({ id: roleId });
+        if (!role) {
+            return res.status(404).json({ error: "Role not found." });
+        }
 
-      user = await this.userRepository.save(user);
+        //update user role
+        user.role = role;
+        await this.userRepository.save(user);
+        ResponseHandler.sendSuccessResponse(res, user, StatusCodes.OK);
+        
 
-      ResponseHandler.sendSuccessResponse(res, user, StatusCodes.OK);
-    } catch (error: any) {
+    }
+    catch (error: any) {
       ResponseHandler.sendErrorResponse(
         res,
         StatusCodes.BAD_REQUEST,
